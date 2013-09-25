@@ -16,6 +16,9 @@
 #include<vector>
 #include<map>
 #include<time.h>
+#include <fstream>
+#include <direct.h>
+#include <sstream>
 
 using namespace std;
 
@@ -36,12 +39,12 @@ void Zero( double *pVals, size_t pCount ) {
 
 class cAction {
 public:
-	vector< long double > mWeight;
+	vector< double > mWeight;
 	double			 mThreshold;
 	double			 mResult;
 
 	double			 mDelta;
-	vector< long double> mChange;
+	vector< double> mChange;
 
 	double			 mError;
 
@@ -121,6 +124,74 @@ public:
 		mErrorThresh	= 0.005;
 	}
 
+	bool Load( string pFile ) {
+		std::ifstream in(pFile,std::ios::binary);
+		if(in.is_open() == false )
+			return false;
+
+		cout << "Loading...";
+		size_t Layers = 0;
+		in.read( (char*) &Layers, sizeof( size_t) );
+		
+		// Each Layer
+		for( size_t Layer = 0; Layer < Layers; ++Layer ) {
+			size_t Actions = 0;
+			size_t ActionsIn = 0;
+
+			in.read( (char*) &Actions, sizeof( size_t ) );
+			in.read( (char*) &ActionsIn, sizeof( size_t ) );
+
+			cConnection *Connection = AddLayer( ActionsIn, Actions );
+
+			// Each Node
+			for( size_t Action = 0; Action < Actions; ++Action ) {
+				size_t Weights = 0;
+
+				in.read( (char*) &Weights, sizeof( size_t ) );
+
+				// Each Weight
+				for( size_t Weight = 0; Weight < Weights; ++Weight ) {
+					double Val = 0;
+					in.read( (char*) &Val, sizeof( double ) );
+
+					Connection->mActions[ Action ]->mWeight[ Weight ] = Val;
+				}
+			}
+		}
+		in.close();
+		cout << "Done\n";
+		return true;
+	}
+
+	void Save( string pFile ) {
+		std::ofstream out(pFile,std::ios::binary);
+		size_t Layers = mConnections.size();
+		cout << "Saving...";
+		out.write( (const char*) &Layers, sizeof( size_t) );
+		
+		for( vector<cConnection*>::iterator LayerIT = mConnections.begin(); LayerIT != mConnections.end(); ++LayerIT ) {
+			size_t Actions = (*LayerIT)->mActions.size();
+
+			out.write( (const char*) &Actions, sizeof( size_t ) );
+			out.write( (const char*) &(*LayerIT)->mActionsIn, sizeof( size_t ) );
+
+			for( vector<cAction*>::iterator ActionIT = (*LayerIT)->mActions.begin(); ActionIT != (*LayerIT)->mActions.end(); ++ActionIT ) {
+				size_t Weights = (*ActionIT)->mWeight.size();
+
+				//out.write(  (const char*) (*ActionIT)->
+				out.write( (const char*) &Weights, sizeof( size_t ) );
+
+				for( vector<double>::iterator WeightIT = (*ActionIT)->mWeight.begin(); WeightIT != (*ActionIT)->mWeight.end(); ++WeightIT ) {
+					
+					out.write( (const char*) &(*WeightIT), sizeof( double ) );
+				}
+			}
+		}
+		cout << "Done\n";
+		out.close();
+	}
+
+	
 	void Randomize( double *pVals, size_t pCount ) {
 
 		for( size_t count = 0; count < pCount; ++count ) {
@@ -129,10 +200,13 @@ public:
 		}
 	}
 
-	void AddLayer( size_t pInputs, size_t pOutputs ) {
+	cConnection *AddLayer( size_t pInputs, size_t pOutputs ) {
 		string Name = "";
+		cConnection *Connection = new cConnection( pOutputs, pInputs, Name );
 
-		mConnections.push_back( new cConnection( pOutputs, pInputs, Name ) );
+		mConnections.push_back( Connection );
+
+		return Connection;
 	}
 
 	/**
@@ -406,9 +480,7 @@ public:
 	}
 };
 
-#include <fstream>
-#include <direct.h>
-#include <sstream>
+
 #include "source/bitmap_image.hpp"
 
 #define PATH_MAX 4096
@@ -538,6 +610,7 @@ void TrainRun( double *pInput, size_t pInputs, size_t pOutput, double pOutputVal
 void Run() {
 
 	Network = new cNetwork();
+	Network->Load("net.bin");
 
 	Zero( Target, Targets );
 	// Train Blank
@@ -552,7 +625,7 @@ void Run() {
 		// Train B_
 		TrainRun( InputB_, Inputs,	1,	1, "B_" );		// Node 1
 
-
+		Network->Save("net.bin");
 		// Train _A
 		//TrainRun( Input_A, Inputs, 0, 0.2, "_A" );
 
