@@ -19,10 +19,9 @@
 #include <fstream>
 #include <direct.h>
 #include <sstream>
+#include <iomanip>
 
 using namespace std;
-
-#include "network.hpp"
 
 double RandomNumber(double pMin, double pMax) {
 
@@ -42,6 +41,7 @@ public:
 	vector< double > mWeight;
 	double			 mThreshold;
 	double			 mResult;
+	double			 mInput;
 
 	double			 mDelta;
 	vector< double> mChange;
@@ -53,11 +53,13 @@ public:
 	cAction( const string &pName, const bool &pSigmoid, const size_t &pInputCount, const double pThreshold ) {
 		mDelta = 0;
 		mError = 0;
+		mInput = 0;
 
 		mResult = 0;
+		mThreshold = pThreshold;
+
 		mWeight.reserve( pInputCount );
 		mChange.reserve( pInputCount );
-		mThreshold = pThreshold;
 
 		for( unsigned int x = 0; x < pInputCount; ++x )  {
 			mWeight.push_back( RandomNumber( -1, 1 ) );
@@ -82,6 +84,13 @@ public:
 		for( size_t Node = 0; Node < pActions; ++Node ) {
 
 			mActions[ Node ] = new cAction( pName, sigmoid, pActionsIn, RandomNumber(-1,1) );
+		}
+	}
+
+	void EraseInputs() {
+
+		for( size_t Node = 0; Node < mActions.size(); ++Node ) {
+			mActions[Node]->mInput = 0;
 		}
 	}
 
@@ -120,8 +129,18 @@ public:
 		mLayer = 0;
 
 		mMomentum		= 0.01;
-		mLearningRate	= 0.01;
+		mLearningRate	= 0.1;
 		mErrorThresh	= 0.005;
+	}
+
+	double activationFunction(double x) {
+
+		return 1/(1 + exp(-1*x));
+	}
+
+	double activationFunctionPrimed(double x) {
+
+		return activationFunction(x)*(1 - activationFunction(x));
 	}
 
 	bool Load( string pFile ) {
@@ -132,7 +151,7 @@ public:
 		cout << "Loading...";
 		size_t Layers = 0;
 		in.read( (char*) &Layers, sizeof( size_t) );
-		
+
 		// Each Layer
 		for( size_t Layer = 0; Layer < Layers; ++Layer ) {
 			size_t Actions = 0;
@@ -168,7 +187,7 @@ public:
 		size_t Layers = mConnections.size();
 		cout << "Saving...";
 		out.write( (const char*) &Layers, sizeof( size_t) );
-		
+
 		for( vector<cConnection*>::iterator LayerIT = mConnections.begin(); LayerIT != mConnections.end(); ++LayerIT ) {
 			size_t Actions = (*LayerIT)->mActions.size();
 
@@ -182,7 +201,7 @@ public:
 				out.write( (const char*) &Weights, sizeof( size_t ) );
 
 				for( vector<double>::iterator WeightIT = (*ActionIT)->mWeight.begin(); WeightIT != (*ActionIT)->mWeight.end(); ++WeightIT ) {
-					
+
 					out.write( (const char*) &(*WeightIT), sizeof( double ) );
 				}
 			}
@@ -191,7 +210,7 @@ public:
 		out.close();
 	}
 
-	
+
 	void Randomize( double *pVals, size_t pCount ) {
 
 		for( size_t count = 0; count < pCount; ++count ) {
@@ -200,7 +219,7 @@ public:
 		}
 	}
 
-	cConnection *AddLayer( size_t pInputs, size_t pOutputs ) {
+	cConnection *AddLayer( size_t pInputs, size_t pOutputs) {
 		string Name = "";
 		cConnection *Connection = new cConnection( pOutputs, pInputs, Name );
 
@@ -209,94 +228,46 @@ public:
 		return Connection;
 	}
 
-	/**
-	*
-	**/
-	cConnection *InsertNewLayer( const size_t pLayer ) {
-		string Name = "";;
-
-		cConnection *Layer = mConnections[pLayer];
-		cConnection *LayerNext = mConnections[pLayer+1];
-
-		cConnection *NewLayer= new cConnection( LayerNext->mActions.size() - 2, Layer->mActions.size(), Name );
-		vector< cConnection* >::iterator LayerIT;
-
-		size_t count = 0;
-
-		for( LayerIT = mConnections.begin(); LayerIT != mConnections.end(); ++LayerIT, ++count ) {
-
-			if( count == pLayer + 1 )
-				break;
-		}
-
-		mConnections.insert( LayerIT, NewLayer );
-
-		return NewLayer;
-	}
-
-	// 
-	bool TrainNewLayer( size_t pLayer ) {
-
-		cConnection *NewLayer = mConnections[ pLayer ];
-		cConnection *PrevLayer = mConnections[ pLayer - 1 ];
-		cConnection *NextLayer = mConnections[ pLayer + 1 ];
-
-		for( size_t Node = 0; Node < NewLayer->mActions.size(); ++Node ) {
-
-			// Every weight to the previous layer
-			for( size_t NodeIn = 0; NodeIn < NewLayer->mActions[Node]->mWeight.size(); ++ NodeIn ) {
-
-				if( NodeIn < NextLayer->mActions[Node]->mWeight.size() ) {
-
-					NewLayer->mActions[Node]->mWeight[ NodeIn ] = NextLayer->mActions[Node]->mWeight[ NodeIn ];
-
-					// TODO: Recalculate delta from here?
-
-				} else
-					NewLayer->mActions[Node]->mWeight[ NodeIn ] = RandomNumber( -1, 1 );
-			}
-			
-		}
-
-		return false;
-	}
-
 	void ErrorLayer( const double *pTarget, const size_t pTargets  ) {
 
 		for( int Layer = mConnections.size() - 1; Layer >= 0; --Layer ) {
 			cConnection *Connection = mConnections[Layer];
 
 			for( size_t Node = 0; Node < Connection->mActions.size(); ++Node ) {
+				cAction *Action = Connection->mActions[ Node ];
+
 				double Error =0 ;
 
 				// Output Layer
 				if( Layer == mConnections.size() - 1 ) {
 
-					Error = pTarget[ Node ] - Connection->mActions[ Node ]->mResult;
+					Error = activationFunctionPrimed( Connection->mActions[ Node ]->mInput )
+						* (pTarget[ Node ] - Connection->mActions[ Node ]->mResult);
 
 				} else {
+
 					cConnection *ConnectionUp = mConnections[Layer+1];
+
 
 					for( size_t LayerUpNode = 0; LayerUpNode < ConnectionUp->mActions.size(); ++LayerUpNode ) {
 
 						cAction *ActionsUp = ConnectionUp->mActions[ LayerUpNode ];
 
-						Error += ActionsUp->mWeight[ LayerUpNode ] * ActionsUp->mDelta;
+						Error += Action->mWeight[ LayerUpNode ] * ActionsUp->mDelta;
 					}
 
 
 				}
 				Connection->mActions[Node]->mError = Error;
-				Connection->mActions[Node]->mDelta = Error * Connection->mActions[Node]->mResult * (1 - Connection->mActions[Node]->mResult);
+				Connection->mActions[Node]->mDelta = activationFunctionPrimed( Connection->mActions[Node]->mInput ) * Error ;
 
 			}
 		}
 	}
 
-	void WeightAdjust() {
+	void WeightAdjust( const double *pInput, const size_t pInputs ) {
 
-		for( size_t Layer = 2; Layer <= mConnections.size() - 1; ++Layer ) {
-
+		for( int Layer = mConnections.size() - 1; Layer >= 1; --Layer ) {
 			cConnection *Connection = mConnections[Layer];
 			cConnection *ConnectionUp = mConnections[Layer - 1];
 
@@ -306,32 +277,38 @@ public:
 				// k
 				for( size_t NodeIn = 0; NodeIn < ConnectionUp->mActions.size(); ++NodeIn ) {
 
-					double change = Action->mChange[ NodeIn ];
+					Action->mWeight[ NodeIn ] += ( mLearningRate * Action->mDelta * ConnectionUp->mActions[ NodeIn ]->mResult );
 
-					change = ( mLearningRate * 
-						Action->mDelta * 
-						ConnectionUp->mActions[ NodeIn ]->mResult )
-
-						+ (mMomentum * change);
-
-					Action->mChange[ NodeIn ] = change;
-					Action->mWeight[ NodeIn ] += change;
+					//+ (mMomentum * change);
 				}
+			}
+		}
 
-				Action->mThreshold += mLearningRate * Action->mDelta;
+		// Input layer
+		cConnection *Connection = mConnections[0];
+
+		for( size_t Node = 0; Node < Connection->mActions.size(); ++Node ) {
+			cAction *Action = Connection->mActions[ Node ];
+
+			for( size_t NodeIn = 0; NodeIn < pInputs; ++NodeIn ) {
+				Action->mWeight[ Node ] += ( mLearningRate *  Action->mDelta * pInput[NodeIn] );
 			}
 		}
 	}
 
-	double MeanSqueared( cConnection *pConnection ) {
+	double MeanSqueared( cConnection *pConnection, const double *pTarget, const size_t pTargets ) {
 		double sum = 0;
 
 		for( size_t i = 0; i < pConnection->mActions.size(); ++i ) {
 
-			sum += pow( pConnection->mActions[ i ]->mError, 2 );
+			//sum += pow( pConnection->mActions[ i ]->mError, 2 );
+			sum += (pTarget[i] - pConnection->mActions[ i ]->mResult )
+
+				*  (pTarget[i] - pConnection->mActions[ i ]->mResult);
+
 		}
 
-		return sum / pConnection->mActions.size();
+		return sum;
 	}
 
 	double TrainPattern( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
@@ -339,9 +316,9 @@ public:
 		Forward( pInput, pInputs );
 
 		ErrorLayer( pTarget, pTargets );
-		WeightAdjust();
+		WeightAdjust( pInput, pInputs );
 
-		double Error = MeanSqueared( mConnections[ mConnections.size() - 1 ] );
+		double Error = MeanSqueared( mConnections[ mConnections.size() - 1 ], pTarget, pTargets  );
 
 		return Error;
 	}
@@ -369,17 +346,17 @@ public:
 
 			while( (Targets / Sums) * 100 < 40 ) {
 
-				Sums -= DecSize;
+			Sums -= DecSize;
 
-				if(Sums < Targets) {
-					Sums = Targets;
-					break;
-				}
+			if(Sums < Targets) {
+			Sums = Targets;
+			break;
+			}
 
-				AddLayer( pInputs, Sums );
+			AddLayer( pInputs, Sums );
 			}*/
 
-			AddLayer( pInputs, Sums / 1.2 );
+			AddLayer( pInputs, Sums );
 
 			// Second last layer
 			AddLayer( pInputs, Sums / 1.4 );
@@ -388,8 +365,6 @@ public:
 
 			// Correct still?
 			mLayer = mConnections.size() - 2;
-
-			CreateLayer = false;
 		} 
 
 		double Error = 0;
@@ -400,9 +375,9 @@ public:
 			if( CreateLayer ) {
 				CreateLayer = false;
 
-				cConnection *NewLayer = InsertNewLayer( mLayer++ );
+				//cConnection *NewLayer = InsertNewLayer( mLayer++ );
 
-				CreateLayer = TrainNewLayer( mLayer );
+				//CreateLayer = TrainNewLayer( mLayer );
 
 				--Iteration;
 
@@ -417,34 +392,52 @@ public:
 
 	cConnection *Forward( const double *pInputs, const size_t pInputCount ) {
 
+		cConnection *Connection = mConnections[ 0 ];
+		cConnection *ConnectionUp = 0;
+
+		Connection->EraseInputs();
+
 		// Load inputs
 		for( size_t Node = 0; Node < pInputCount; ++Node ) {
 
-			
-			mConnections[ 0 ]->mActions[Node]->mResult = pInputs[ Node ];
-				
+			cAction *Action = Connection->mActions[ Node ];
+
+			for( size_t WeightUpNode = 0; WeightUpNode < Connection->mActions.size(); ++WeightUpNode ) {
+
+				Connection->mActions[Node]->mInput += 
+					pInputs[ WeightUpNode ] * 
+					Connection->mActions[Node]->mWeight[ WeightUpNode ] ;
+			}
+
 		}
 
 		// Run the network forward
-		for( size_t Layer = 1; Layer <= mConnections.size() - 1; ++Layer ) {
+		for( size_t Layer = 0; Layer < mConnections.size() - 1; ++Layer ) {
 
-			cConnection *Connection = mConnections[ Layer ];
-			cConnection *ConnectionUp = mConnections[ Layer - 1 ];
+			Connection = mConnections[ Layer ];
+			ConnectionUp = mConnections[ Layer + 1 ];
 
-			
-			for( vector<cAction*>::iterator ActIT = Connection->mActions.begin(); ActIT != Connection->mActions.end(); ++ActIT ) {
+			ConnectionUp->EraseInputs();
 
-				double Result = (*ActIT)->mThreshold;
+			for( size_t Node = 0 ; Node < Connection->mActions.size(); ++ Node ) {
+				cAction *Action = Connection->mActions[ Node ];
 
+				Action->mResult = activationFunction( Action->mInput );
+				
 				for( size_t WeightUpNode = 0; WeightUpNode < ConnectionUp->mActions.size(); ++WeightUpNode ) {
 					cAction *ActionUp = ConnectionUp->mActions[ WeightUpNode ];
 
-					Result += ActionUp->mResult  * (*ActIT)->mWeight[ WeightUpNode ];
+					ActionUp->mInput += Action->mResult  * Action->mWeight[ WeightUpNode ];
 				}
-
-	//			if( Action->mResult > Action->mThreshold )
-					(*ActIT)->mResult = 1 / (1 + exp(-Result));
 			}
+		}
+
+		// Set outputs
+		for( size_t Node = 0; Node < mConnections[  mConnections.size() -1 ]->mActions.size() ; ++Node ) {
+
+			cAction *Action = mConnections[  mConnections.size() - 1 ]->mActions[ Node ];
+
+			Action->mResult = activationFunction( Action->mInput );	
 		}
 
 		return mConnections[ mConnections.size() -1] ;
@@ -515,11 +508,19 @@ double *InputBmp( string pFile, size_t &pBytes ) {
 
 			Bitmap.get_pixel( x, y, red, green, blue );
 
-			if( blue == 0xFF && red == 0xFF & green == 0xFF )
+			if( blue == 0xFF && red == 0xFF & green == 0xFF ) {
 				Input[i] = 0;
-			else
-				Input[i] = 1;
 
+			} else {
+
+				if( red == 0xFF && blue == 0 && green == 0 ) {
+					Input[ i ] = 2;
+
+				} else {
+
+					Input[i] = 1;
+				}
+			}
 
 			cout << Input[i];			
 			++i;
@@ -532,24 +533,37 @@ double *InputBmp( string pFile, size_t &pBytes ) {
 }
 
 cNetwork *Network = 0;
-size_t Inputs = 0, Targets = 26;
+size_t Inputs = 0, Targets = 5;
 double *Input__ = InputBmp( "Pics\\24x12\\__.bmp", Inputs);
 double *InputA_ = InputBmp( "Pics\\24x12\\A_.bmp", Inputs);
 double *InputB_ = InputBmp( "Pics\\24x12\\B_.bmp", Inputs);
-	
+double *InputC_ = InputBmp( "Pics\\24x12\\C_.bmp", Inputs);
+
 double *Input_A = InputBmp( "Pics\\24x12\\_A.bmp", Inputs);
 double *Input_B = InputBmp( "Pics\\24x12\\_B.bmp", Inputs);
+double *Input_C = InputBmp( "Pics\\24x12\\_C.bmp", Inputs);
 double *InputAB = InputBmp( "Pics\\24x12\\AB.bmp", Inputs);
 double *InputBA = InputBmp( "Pics\\24x12\\BA.bmp", Inputs);
+double *Input_A_Red = InputBmp( "Pics\\24x12\\_A_Red.bmp", Inputs );
+
+/*
+double *Input__ = InputBmp( "Pics\\96x12\\________.bmp", Inputs );
+double *InputA_ = InputBmp( "Pics\\96x12\\A_______.bmp", Inputs );
+double *InputB_ = InputBmp( "Pics\\96x12\\B_______.bmp", Inputs );
+
+double *Input_A = InputBmp( "Pics\\96x12\\_______A.bmp", Inputs );
+double *Input_B = InputBmp( "Pics\\96x12\\_______B.bmp", Inputs );
+
+double *InputBA = InputBmp( "Pics\\96x12\\B_______A_.bmp", Inputs);*/
 
 double *Target = new double[Targets];
 
 void TrainInitial( double *pInput, size_t pInputs, double *pTarget, size_t pTargets ) {
-	
-		//mMomentum = 0.001;
-		//mLearningRate = 0.003;
+
+	//mMomentum = 0.001;
+	//mLearningRate = 0.003;
 	Network->mMomentum		= 0.01;
-	Network->mLearningRate	= 0.01;
+	Network->mLearningRate	= 0.1;
 	Network->mErrorThresh	= 0.005;
 
 	double Error = 0;
@@ -566,14 +580,14 @@ void TrainInitial( double *pInput, size_t pInputs, double *pTarget, size_t pTarg
 
 void Train( double *pInput, size_t pInputs, double *pTarget, size_t pTargets ) {
 	double Error = 0;
-	
+
 	//Network->mMomentum		= 0.001;
 	//Network->mLearningRate	= 0.002;
 	Network->mErrorThresh	= 0.005;
-	
-	Network->mLearningRate += 0.00001;
 
-	for( size_t Iteration = 0; Iteration < 3; ++Iteration ) {
+	//Network->mLearningRate -= 0.00001;
+
+	for( size_t Iteration = 0; Iteration < 7; ++Iteration ) {
 
 		Error = Network->Backward( pTarget, pTargets, pInput, pInputs  );
 
@@ -582,27 +596,40 @@ void Train( double *pInput, size_t pInputs, double *pTarget, size_t pTargets ) {
 
 }
 
+void TestRunExpected(  double *pInput, size_t pInputs, size_t pOutputNumber, size_t pOutputNumberMax, double pValue, string pName ) {
+	cConnection *Outputs = 0;
+	cout << "testing " << pName << "\n";
+
+	Outputs = Network->Forward( pInput, pInputs );
+
+	for( size_t pOutput = pOutputNumber; pOutput < pOutputNumberMax; ++pOutput ) 
+		cout << " Node: " << pOutput << " : "  << std::setprecision(3) << Outputs->mActions[ pOutput ]->mResult << "\n";
+
+	cout << "\n";
+
+}
+
 void TestRun( double *pInput, size_t pInputs, string pName ) {
 	cConnection *Outputs = 0;
 
-	cout << "testing " << pName << "\n";
-	
+	cout << "\ntesting " << pName << "\n";
+
 	Outputs = Network->Forward( pInput, pInputs );
 	for( int x = 0 ; x < 4; ++x ) {
 
-		cout << x << ": " << Outputs->mActions[ x ]->mResult << "  ";
+		cout << " " <<  x << ": " << std::setprecision(3) << Outputs->mActions[ x ]->mResult << "  ";
 	}
 	cout << "\n";
 }
 
 void TrainRun( double *pInput, size_t pInputs, size_t pOutput, double pOutputValue, string pName ) {
-	
+
 	Zero(Target, Targets );
 	Target[pOutput] = pOutputValue;
 
 	cout << "training " << pName << "\n";
 	Train( pInput, pInputs, Target, Targets );
-	
+
 	//TestRun( pInput, pInputs, pName );
 }
 
@@ -617,103 +644,47 @@ void Run() {
 	TrainInitial( Input__, Inputs, Target, Targets );
 
 	for(;;) {
-		TrainRun( Input__, Inputs, 0, 0.0, "__" );
+		//TrainRun( Input__, Inputs, 0, 0.0, "__" );
 
 		// Train A_
-		TrainRun( InputA_, Inputs, 0, 1, "A_" );			// Node 0
+		//TrainRun( InputA_, Inputs, 0, 1, "A_" );			// Node 0
+
+		TrainRun( Input_A_Red, Inputs, 3, 1, "_A_Red" );
+
 
 		// Train B_
 		TrainRun( InputB_, Inputs,	1,	1, "B_" );		// Node 1
 
-		Network->Save("net.bin");
+		// Train C_
+		//TrainRun( InputB_, Inputs,	2,	1, "C_" );		// Node 2
+
 		// Train _A
-		//TrainRun( Input_A, Inputs, 0, 0.2, "_A" );
+		//TrainRun( Input_A, Inputs, 0, 1, "_A" );
 
 		// Train _B
-		//TrainRun( Input_B, Inputs,	1,	0.2, "_B" );		// Node 1
-
+		//TrainRun( Input_B, Inputs,	1,	1, "_B" );		// Node 1
+		Network->Save("net.bin");
 		TestRun( Input__, Inputs, "__");
 
-		TestRun( InputA_, Inputs, "A_");
-		//TestRun( Input_A, Inputs, "_A");
+		TestRunExpected( Input_A_Red, Inputs, 3, 4, 1, "_A (Red)"); 
 
-		TestRun( InputB_, Inputs, "B_");
-		//TestRun( Input_B, Inputs, "_B");
+		TestRunExpected( InputA_, Inputs, 0, 1, 1, "A_");
+		TestRunExpected( Input_A, Inputs, 0, 1, 1, "_A" );
 
-		//TestRun( InputAB, Inputs, "AB");
+		TestRunExpected( InputB_, Inputs, 1, 2, 1, "B_");
+		TestRunExpected( Input_B, Inputs, 1, 2, 1, "_B");
+
+		TestRunExpected( InputC_, Inputs, 2, 3, 1, "C_");
+		TestRunExpected( Input_C, Inputs, 2, 3, 1, "_C");
+
+		TestRunExpected( InputBA, Inputs, 0, 2, 1, "AB");
 		//( InputBA, Inputs, "BA");
 	}
 
-
-
-	/*cout << "testing _A\n";
-	Outputs = Network->Forward( Input_A, Inputs );
-	for( int x = 0 ; x < Outputs->mActions.size(); ++x ) {
-
-		cout << x << ": " << Outputs->mActions[ x ]->mResult << "\n";
-	}*/
 }
 
 int main() {		
 	srand (time(NULL));
 	Run();
 
-	/*
-	size_t InputsBl = 0;
-	double *InputBl = InputBmp( "Pics\\_.bmp", InputsBl);
-	size_t InputsA = 0;
-	double *InputA = InputBmp( "Pics\\A.bmp", InputsA);
-	size_t InputsB = 0;
-	double *InputB = InputBmp( "Pics\\B.bmp", InputsB);
-	size_t InputsC = 0;
-	double *InputC = InputBmp( "Pics\\C.bmp", InputsC);
-	*/
-
-	//cNetwork Network( InputBl, InputsBl );
-	/*
-	size_t Results = 26;
-
-
-	for( size_t it = 0; it < 100; ++it ) {
-		cout << "Training Bl\n";
-		Network.mInputSet( InputBl, InputsBl + 1);
-		Result[0] = 0;Result[1] = 0;Result[2] = 0;
-		Network.Backward( Result, Results );
-
-		cout << "Training A\n";
-		Network.mInputSet( InputA, InputsA + 1);
-		Result[0] = 1;Result[1] = 0;Result[2] = 0;
-		Network.Backward( Result, Results );
-
-		cout << "Training B\n";
-		Network.mInputSet( InputB, InputsB + 1);
-		Result[0] = 0;Result[1] = 1;Result[2] = 0;
-		Network.Backward( Result, Results );
-
-		cout << "Training C\n";
-		Network.mInputSet( InputC, InputsC + 1);
-		Result[0] = 0;Result[1] = 0;Result[2] = 1;
-		Network.Backward( Result, Results );
-
-	cout << "testing B\n";
-	cConnection *Outputs = Network.Forward( InputB, InputsB + 1);
-	for( int x = 0 ; x < Outputs->mActions.size(); ++x ) {
-
-		cout << x << ": " << Outputs->mActions[ x ]->mResult << "\n";
-	}
-	
-	cout << "testing C\n";
-	Outputs = Network.Forward( InputC, InputsC + 1);
-	for( int x = 0 ; x < Outputs->mActions.size(); ++x ) {
-
-		cout << x << ": " << Outputs->mActions[ x ]->mResult << "\n";
-	}
-
-	cout << "testing A\n";
-	Outputs = Network.Forward( InputA, InputsA + 1);
-	for( int x = 0 ; x < Outputs->mActions.size(); ++x ) {
-
-		cout << x << ": " << Outputs->mActions[ x ]->mResult << "\n";
-	}
-	}*/
 }
