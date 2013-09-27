@@ -215,10 +215,10 @@ void Run() {
 		TrainRun( InputA_, Inputs, 0, 1, "A_" );			// Node 0
 
 		// Train B_
-		//TrainRun( InputB_, Inputs,	1,	1, "B_" );		// Node 1
+		TrainRun( InputB_, Inputs,	1,	1, "B_" );		// Node 1
 
 		// Train C_
-		//TrainRun( InputB_, Inputs,	2,	1, "C_" );		// Node 2
+		TrainRun( InputB_, Inputs,	2,	1, "C_" );		// Node 2
 		//TrainRun( Input_A_Red, Inputs, 3, 1, "_A_Red" );
 		// Train _A
 		//TrainRun( Input_A, Inputs, 0, 1, "_A" );

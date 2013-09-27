@@ -38,7 +38,7 @@ public:
 
 
 		for( unsigned int x = 0; x < pInputCount; ++x )  {
-			mWeight.push_back( RandomNumber( -1, 1 ) );
+			mWeight.push_back( RandomNumber( -2.4 / pInputCount, 2.4 / pInputCount  ) );
 		}
 	}
 };
@@ -116,14 +116,6 @@ public:
 	double activationFunctionPrimed(double x) {
 
 		return activationFunction(x)*(1 - activationFunction(x));
-	}
-	
-	void Randomize( double *pVals, size_t pCount ) {
-
-		for( size_t count = 0; count < pCount; ++count ) {
-
-			pVals[count] = RandomNumber( -1, 1 );
-		}
 	}
 
 	bool Load( string pFile ) {
@@ -242,7 +234,7 @@ public:
 	void WeightAdjust( const double *pInput, const size_t pInputs ) {
 
 		// Layers
-		for( int Layer = mConnections.size() - 2; Layer >= 1; --Layer ) {
+		for( int Layer = mConnections.size() - 1; Layer >= 1; --Layer ) {
 			cConnection *Connection = mConnections[Layer];
 			cConnection *ConnectionUp = mConnections[Layer - 1];
 
@@ -360,17 +352,18 @@ public:
 
 	cConnection *Forward( const double *pInputs, const size_t pInputCount, bool pTrackOutputs = false ) {
 
-		cConnection *Connection = mConnections[ 0 ];
-		cConnection *ConnectionUp = 0;
+		cConnection *LayerCurrent = mConnections[ 0 ];
+		cConnection *LayerPrevious = 0;
 
-		Connection->EraseInputs();
+		LayerCurrent->EraseInputs();
 
 		// Load inputs
 		for( size_t Node = 0; Node < pInputCount; ++Node ) {
 
-			cAction *Action = Connection->mActions[ Node ];
+			cAction *Action = LayerCurrent->mActions[ Node ];
 
-			for( size_t UpNode = 0; UpNode < Connection->mActions.size(); ++UpNode ) {
+			// Add up the value of each input node * the weight
+			for( size_t UpNode = 0; UpNode < LayerCurrent->mActions.size(); ++UpNode ) {
 
 				Action->mInput += pInputs[ UpNode ] * Action->mWeight[ UpNode ];
 
@@ -381,25 +374,26 @@ public:
 				}
 			}
 
+			// calc the activation
 			Action->mResult = activationFunction( Action->mInput );
 		}
 
 		// Run the network forward
 		for( size_t Layer = 1; Layer < mConnections.size(); ++Layer ) {
-
-			Connection = mConnections[ Layer ];
-			ConnectionUp = mConnections[ Layer - 1 ];
-
-			Connection->EraseInputs();
+			LayerPrevious = mConnections[ Layer - 1 ];
+			LayerCurrent = mConnections[ Layer ];
+			
+			LayerCurrent->EraseInputs();
 
 			// Each node on this layer
-			for( size_t Node = 0 ; Node < Connection->mActions.size(); ++ Node ) {
-				cAction *Action = Connection->mActions[ Node ];
+			for( size_t Node = 0 ; Node < LayerCurrent->mActions.size(); ++ Node ) {
+				cAction *Action = LayerCurrent->mActions[ Node ];
 
 				// Each input to this layer
-				for( size_t UpNode = 0; UpNode < ConnectionUp->mActions.size(); ++UpNode ) {
-					cAction *ActionUp = ConnectionUp->mActions[ UpNode ];
+				for( size_t UpNode = 0; UpNode < LayerPrevious->mActions.size(); ++UpNode ) {
+					cAction *ActionUp = LayerPrevious->mActions[ UpNode ];
 
+					// Current Value + Result of the node from the previous layer, multiplied by the weight between those nodes
 					Action->mInput += ActionUp->mResult * Action->mWeight[ UpNode ] ;
 
 					if( pTrackOutputs ) {
@@ -415,7 +409,7 @@ public:
 
 		return mConnections[ mConnections.size() -1] ;
 	}
-
+	/*
 	void ShowHow( const double *pInput, size_t pInputs, size_t pOutputNode ) {
 
 		Forward( pInput, pInputs, true );
@@ -462,7 +456,7 @@ public:
 			}
 
 		}
-	}
+	}*/
 
 	void CreateGroup( size_t pLayer, string pName, size_t pNodes ) {
 
