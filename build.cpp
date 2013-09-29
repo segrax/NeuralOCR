@@ -73,7 +73,7 @@ double *InputBmp( string pFile, size_t &pBytes ) {
 
 			Bitmap.get_pixel( x, y, red, green, blue );
 
-			if( blue == 0xFF && red == 0xFF & green == 0xFF ) {
+			if( blue == 0xFF && red == 0xFF && green == 0xFF ) {
 				Input[i] = 0;
 
 			} else {
@@ -128,7 +128,7 @@ void TrainInitial( const double *pInput, const size_t pInputs, double *pTarget, 
 	//mMomentum = 0.001;
 	//mLearningRate = 0.003;
 	Network->mMomentum		= 0.01;
-	Network->mLearningRate	= 0.3;
+	Network->mLearningRate	= 0.01;
 	Network->mErrorThresh	= 0.005;
 
 	double Error = 0;
@@ -150,7 +150,7 @@ void Train( const double *pInput, const size_t pInputs, double *pTarget, size_t 
 	//Network->mLearningRate	= 0.002;
 	Network->mErrorThresh	= 0.005;
 
-	Network->mLearningRate -= 0.000001;
+	//Network->mLearningRate -= 0.000001;
 
 	for( size_t Iteration = 0; Iteration < 7; ++Iteration ) {
 
@@ -168,7 +168,7 @@ void TestRunExpected(  double *pInput, size_t pInputs, size_t pOutputNumber, siz
 	Outputs = Network->Forward( pInput, pInputs );
 
 	for( size_t pOutput = pOutputNumber; pOutput < pOutputNumberMax; ++pOutput ) 
-		cout << " Node: " << pOutput << " : "  << std::setprecision(3) << Outputs->mActions[ pOutput ]->mResult << "\n";
+		cout << " Node: " << pOutput << " : "  << Outputs->mActions[ pOutput ]->mResult << "\n";
 
 	cout << "\n";
 
@@ -182,7 +182,7 @@ void TestRun( double *pInput, size_t pInputs, string pName ) {
 	Outputs = Network->Forward( pInput, pInputs );
 	for( int x = 0 ; x < 4; ++x ) {
 
-		cout << " " <<  x << ": " << std::setprecision(3) << Outputs->mActions[ x ]->mResult << "  ";
+		cout << " " <<  x << ": " << Outputs->mActions[ x ]->mResult << "  ";
 	}
 	cout << "\n";
 }
@@ -229,7 +229,7 @@ void Run() {
 		TestRun( Input__, Inputs, "__");
 
 		//TestRunExpected( Input_A_Red, Inputs, 3, 4, 1, "_A (Red)"); 
-
+		
 		TestRunExpected( InputA_, Inputs, 0, 1, 1, "A_");
 		TestRunExpected( Input_A, Inputs, 0, 1, 1, "_A" );
 

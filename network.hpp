@@ -23,6 +23,8 @@ public:
 	double			 mResult;
 	double			 mInput;
 
+	vector<double>	 mChange;
+	double			 mError;
 	double			 mDelta;
 
 	string			 mName;
@@ -30,15 +32,17 @@ public:
 	cAction( const string &pName, const size_t &pInputCount, const double pThreshold ) {
 		mDelta = 0;
 		mInput = 0;
+		mError = 0;
 
 		mResult = 0;
 		mThreshold = pThreshold;
-
+		mChange.reserve( pInputCount );
 		mWeight.reserve( pInputCount );
 
 
 		for( unsigned int x = 0; x < pInputCount; ++x )  {
-			mWeight.push_back( RandomNumber( -2.4 / pInputCount, 2.4 / pInputCount  ) );
+			mWeight.push_back( RandomNumber( -1, 1 ) );
+			mChange.push_back(0);
 		}
 	}
 };
@@ -78,6 +82,7 @@ public:
 	}
 };
 
+
 class cNetwork {
 public:
 	double mErrorThresh;
@@ -104,20 +109,162 @@ public:
 		mLayer = 0;
 
 		mMomentum		= 0.01;
-		mLearningRate	= 0.0005;
+		mLearningRate	= 0.01;
 		mErrorThresh	= 0.005;
 	}
 
-	double activationFunction(double x) {
+	void Randomize( double *pVals, size_t pCount ) {
 
-		return 1/(1 + exp(-1*x));
+		for( size_t count = 0; count < pCount; ++count ) {
+
+			pVals[count] = RandomNumber( -1, 1 );
+		}
 	}
 
-	double activationFunctionPrimed(double x) {
+	void ErrorLayer( const double *pTarget, const size_t pTargets  ) {
 
-		return activationFunction(x)*(1 - activationFunction(x));
+		for( int Layer = mConnections.size() - 1; Layer >= 0; --Layer ) {
+			cConnection *Connection = mConnections[Layer];
+
+			for( size_t Node = 0; Node < Connection->mActions.size(); ++Node ) {
+				cAction *Action = Connection->mActions[Node];
+				double Error =0 ;
+
+				// Output Layer
+				if( Layer == mConnections.size() - 1 ) {
+
+					Error = pTarget[ Node ] - Action->mResult;
+
+				} else {
+					cConnection *ConnectionUp = mConnections[Layer+1];
+
+					for( size_t LayerUpNode = 0; LayerUpNode < ConnectionUp->mActions.size(); ++LayerUpNode ) {
+
+						cAction *ActionsUp = ConnectionUp->mActions[ LayerUpNode ];
+
+						Error += ActionsUp->mWeight[ Node ] * Action->mDelta;
+					}
+
+
+				}
+				Action->mError = Error;
+				Action->mDelta = Error * Action->mResult * (1 - Action->mResult);
+
+			}
+		}
 	}
 
+	void WeightAdjust() {
+
+		for( size_t Layer = 1; Layer <= mConnections.size() - 1; ++Layer ) {
+
+			cConnection *Connection = mConnections[Layer];
+			cConnection *ConnectionUp = mConnections[Layer - 1];
+
+			for( size_t Node = 0; Node < Connection->mActions.size(); ++Node ) {
+				cAction *Action = Connection->mActions[ Node ];
+
+				// k
+				for( size_t NodeIn = 0; NodeIn < ConnectionUp->mActions.size(); ++NodeIn ) {
+
+					double change = Action->mChange[ NodeIn ];
+
+					change = ( mLearningRate * 
+						Action->mDelta * 
+						ConnectionUp->mActions[ NodeIn ]->mResult )
+
+						+ (mMomentum * change);
+
+					Action->mChange[ NodeIn ] = change;
+					Action->mWeight[ NodeIn ] += change;
+				}
+
+				//Action->mThreshold += mLearningRate * Action->mDelta;
+			}
+		}
+	}
+
+	double MeanSqueared( cConnection *pConnection ) {
+		double sum = 0;
+
+		for( size_t i = 0; i < pConnection->mActions.size(); ++i ) {
+
+			sum += pow( pConnection->mActions[ i ]->mError, 2 );
+		}
+
+		return sum / pConnection->mActions.size();
+	}
+
+	double TrainPattern( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
+
+		Forward( pInput, pInputs );
+
+		ErrorLayer( pTarget, pTargets );
+		WeightAdjust();
+
+		double Error = MeanSqueared( mConnections[ mConnections.size() - 1 ] );
+
+		return Error;
+	}
+
+	/**
+	* Start with the result
+	*
+	* @param pSource The values which the network has to output, based on its current values
+	* @param pCount  Number of values in pSource
+	**/
+	double Backward( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
+
+		if( mConnections.size() == 0 )
+			CreateLayers( 3, pInputs, pTargets );
+
+		double Error = 0;
+
+		// Train
+		for( size_t Iteration = 0; Iteration < 100; ++Iteration ) {
+
+			Error = TrainPattern( pInput, pInputs, pTarget, pTargets );
+		}
+
+		return Error;
+	}
+
+	cConnection *Forward( const double *pInputs, const size_t pInputCount ) {
+
+		// Load inputs
+		for( size_t Node = 0; Node < pInputCount; ++Node ) {
+
+			
+			mConnections[ 0 ]->mActions[Node]->mResult = pInputs[ Node ];
+				
+		}
+
+		// Run the network forward
+		for( size_t Layer = 1; Layer <= mConnections.size() - 1; ++Layer ) {
+
+			cConnection *Connection = mConnections[ Layer ];
+			cConnection *ConnectionUp = mConnections[ Layer - 1 ];
+
+			
+			for( size_t Node = 0; Node < Connection->mActions.size(); ++Node ) {
+				cAction *Action = Connection->mActions[ Node ];
+
+				double Result = 0;
+
+				for( size_t WeightUpNode = 0; WeightUpNode < ConnectionUp->mActions.size(); ++WeightUpNode ) {
+					cAction *ActionUp = ConnectionUp->mActions[ WeightUpNode ];
+
+					Result += ActionUp->mResult  * Action->mWeight[ WeightUpNode ];
+				}
+
+	//			if( Action->mResult > Action->mThreshold )
+					Action->mResult = 1 / (1 + exp(-Result));
+			}
+		}
+
+		return mConnections[ mConnections.size() -1] ;
+	}
+	
 	bool Load( string pFile ) {
 		std::ifstream in(pFile,std::ios::binary);
 		if(in.is_open() == false )
@@ -184,7 +331,14 @@ public:
 		cout << "Done\n";
 		out.close();
 	}
+	void CreateGroup( size_t pLayer, string pName, size_t pNodes ) {
 
+		while( pNodes-- ) {
+
+			mConnections[pLayer]->AddAction( pName );
+		}
+	}
+	
 	cConnection *AddLayer( size_t pInputs, size_t pOutputs) {
 		string Name = "";
 		cConnection *Connection = new cConnection( pOutputs, pInputs, Name );
@@ -192,102 +346,6 @@ public:
 		mConnections.push_back( Connection );
 
 		return Connection;
-	}
-
-	void ErrorLayer( const double *pTarget, const size_t pTargets  ) {
-
-		cConnection *Connection = mConnections[ mConnections.size() - 1 ];
-		cConnection *ConnectionUp = 0;
-
-		// Output Layer first
-		for( size_t Node = 0; Node < Connection->mActions.size(); ++Node ) {
-			cAction *Action = Connection->mActions[ Node ];
-
-			Action->mDelta = activationFunctionPrimed( Connection->mActions[ Node ]->mInput )
-				* (pTarget[ Node ] - Connection->mActions[ Node ]->mResult);
-		}
-
-
-
-		for( int Layer = mConnections.size() - 2; Layer >= 0; --Layer ) {
-			Connection = mConnections[Layer];
-			ConnectionUp = mConnections[Layer+1];
-
-			for( size_t Node = 0; Node < Connection->mActions.size(); ++Node ) {
-				cAction *Action = Connection->mActions[ Node ];
-				double Sum = 0;
-
-				for( size_t LayerUpNode = 0; LayerUpNode < ConnectionUp->mActions.size(); ++LayerUpNode ) {
-
-					cAction *ActionsUp = ConnectionUp->mActions[ LayerUpNode ];
-
-					Sum += ActionsUp->mDelta * Action->mWeight[ LayerUpNode ];
-				}
-
-				//Connection->mActions[Node]->mError = Sum;
-				Connection->mActions[Node]->mDelta = activationFunctionPrimed( Connection->mActions[Node]->mInput ) * Sum ;
-
-			}
-		}
-	}
-
-	void WeightAdjust( const double *pInput, const size_t pInputs ) {
-
-		// Layers
-		for( int Layer = mConnections.size() - 1; Layer >= 1; --Layer ) {
-			cConnection *Connection = mConnections[Layer];
-			cConnection *ConnectionUp = mConnections[Layer - 1];
-
-			for( size_t Node = 0; Node < Connection->mActions.size(); ++Node ) {
-				cAction *Action = Connection->mActions[ Node ];
-
-				// k
-				for( size_t NodeIn = 0; NodeIn < ConnectionUp->mActions.size(); ++NodeIn ) {
-
-					Action->mWeight[ NodeIn ] += ( mLearningRate * Action->mDelta * ConnectionUp->mActions[ NodeIn ]->mResult );
-
-					//+ (mMomentum * change);
-				}
-			}
-		}
-
-		// Input layer
-		cConnection *Connection = mConnections[0];
-
-		for( size_t Node = 0; Node < Connection->mActions.size(); ++Node ) {
-			cAction *Action = Connection->mActions[ Node ];
-
-			for( size_t NodeIn = 0; NodeIn < pInputs; ++NodeIn ) {
-				Action->mWeight[ NodeIn ] += ( mLearningRate *  Action->mDelta * pInput[NodeIn] );
-			}
-		}
-	}
-
-	double MeanSqueared( cConnection *pConnection, const double *pTarget, const size_t pTargets ) {
-		double sum = 0;
-
-		for( size_t i = 0; i < pConnection->mActions.size(); ++i ) {
-
-
-			sum += (pTarget[i] - pConnection->mActions[ i ]->mResult )
-
-				*  (pTarget[i] - pConnection->mActions[ i ]->mResult);
-
-		}
-
-		return sum;
-	}
-
-	double TrainPattern( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
-
-		Forward( pInput, pInputs );
-
-		ErrorLayer( pTarget, pTargets );
-		WeightAdjust( pInput, pInputs );
-
-		double Error = MeanSqueared( mConnections[ mConnections.size() - 1 ], pTarget, pTargets  );
-
-		return Error;
 	}
 
 	/**
@@ -304,165 +362,37 @@ public:
 		// First Hidden
 		AddLayer( pInputs, Outputs );
 
-		size_t MinLayer = pHiddenLayers;
-		size_t DecSize = (pInputs - pOutputs) / 3;
+		int MinLayer = pHiddenLayers;
+		int DecSize = (pInputs - pOutputs) / 3;
 
 		while( (pOutputs / Outputs) * 100 < 40 ) {
 
 			// Ensure minimum layers
-			if(MinLayer > 1) {
+			if(MinLayer <= 1) {
 
 				// Enough outputs by two?
 				if( (Outputs - (DecSize * 2)) >= pOutputs )
 					Outputs -= DecSize;
+				else
+					break;
 			} else
 				--MinLayer;
-
-			if(Outputs < pOutputs) {
-				Outputs = pOutputs;
-				break;
-			}
 
 			AddLayer( pInputs, Outputs );
 		}
 
 		// Output Layer
 		AddLayer( pInputs, pOutputs );
-	}
 
-	/**
-	* Start with the result
-	*
-	**/
-	double Backward( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
 
-		if( mConnections.size() == 0 )
-			CreateLayers( 7, pInputs, pTargets );
+		cConnection *Connection = mConnections[0];
 
-		double Error = 0;
+		for( size_t Node = 0; Node < Connection->mActions.size(); ++Node ) {
+			cAction *Action = Connection->mActions[Node];
 
-		// Train
-		for( size_t Iteration = 0; Iteration < 100; ++Iteration ) {
-
-			Error = TrainPattern( pInput, pInputs, pTarget, pTargets );
+			for( size_t Weight = 0; Weight < Action->mWeight.size(); ++Weight ) 
+				Action->mWeight[ Weight ] = 0;
 		}
-
-		return Error;
-	}
-
-	cConnection *Forward( const double *pInputs, const size_t pInputCount, bool pTrackOutputs = false ) {
-
-		cConnection *LayerCurrent = mConnections[ 0 ];
-		cConnection *LayerPrevious = 0;
-
-		LayerCurrent->EraseInputs();
-
-		// Load inputs
-		for( size_t Node = 0; Node < pInputCount; ++Node ) {
-
-			cAction *Action = LayerCurrent->mActions[ Node ];
-
-			// Add up the value of each input node * the weight
-			for( size_t UpNode = 0; UpNode < LayerCurrent->mActions.size(); ++UpNode ) {
-
-				Action->mInput += pInputs[ UpNode ] * Action->mWeight[ UpNode ];
-
-				if( pTrackOutputs ) {
-					sHistory History( UpNode, Action->mWeight[ UpNode ], pInputs[ UpNode ] );
-
-					Action->mStrengths.push_back( History );
-				}
-			}
-
-			// calc the activation
-			Action->mResult = activationFunction( Action->mInput );
-		}
-
-		// Run the network forward
-		for( size_t Layer = 1; Layer < mConnections.size(); ++Layer ) {
-			LayerPrevious = mConnections[ Layer - 1 ];
-			LayerCurrent = mConnections[ Layer ];
-			
-			LayerCurrent->EraseInputs();
-
-			// Each node on this layer
-			for( size_t Node = 0 ; Node < LayerCurrent->mActions.size(); ++ Node ) {
-				cAction *Action = LayerCurrent->mActions[ Node ];
-
-				// Each input to this layer
-				for( size_t UpNode = 0; UpNode < LayerPrevious->mActions.size(); ++UpNode ) {
-					cAction *ActionUp = LayerPrevious->mActions[ UpNode ];
-
-					// Current Value + Result of the node from the previous layer, multiplied by the weight between those nodes
-					Action->mInput += ActionUp->mResult * Action->mWeight[ UpNode ] ;
-
-					if( pTrackOutputs ) {
-						sHistory History( UpNode, Action->mWeight[ UpNode ], pInputs[ UpNode ] );
-
-						Action->mStrengths.push_back( History );
-					}
-				}
-
-				Action->mResult = activationFunction( Action->mInput );
-			}
-		}
-
-		return mConnections[ mConnections.size() -1] ;
-	}
-	/*
-	void ShowHow( const double *pInput, size_t pInputs, size_t pOutputNode ) {
-
-		Forward( pInput, pInputs, true );
-
-		for( size_t Layer = mConnections.size() - 1; Layer > 0 ; --Layer ) {
-			cConnection *CurrentLayer = mConnections[Layer];
-
-			for( size_t Node = 0; Node < CurrentLayer->mActions.size(); ++Node ) {
-
-				// Only show one node on the output layer
-				if( Node != pOutputNode && Layer == mConnections.size() - 1 ) 
-					continue;
-
-				cAction *CurrentNode = CurrentLayer->mActions[ Node ];
-
-				cout << "Layer: " << Layer << " Node: " << Node << "\n";
-				cout << "Influence from the nodes on Layer " << Layer - 1 << "\n";
-
-				cout << "Input Node - Added Value\n";
-
-				map< double, size_t > Results;
-
-				// Go through all the results, and add them to the Results map
-				for( vector< sHistory >::iterator StrIT = CurrentNode->mStrengths.begin(); StrIT != CurrentNode->mStrengths.end(); ++StrIT ) {
-
-					double val = (*StrIT).mInputResult * (*StrIT).mWeight;
-
-					Results.insert( make_pair( val, (*StrIT).mNode ) );
-				}
-
-				size_t count = 0;
-				size_t total = Results.size();
-
-				// Each connection which made this so
-				for( map< double, size_t >::iterator MapIT = Results.begin(); MapIT != Results.end(); ++MapIT ) {
-
-					if( count < 10 || count > (total - 10) )
-						cout << ": N-" << (*MapIT).second << " Added-Val: " << (*MapIT).first << "\n";
-					else
-						if( count == 11 )
-							cout << "\n";
-				}
-				cout << "\n";
-			}
-
-		}
-	}*/
-
-	void CreateGroup( size_t pLayer, string pName, size_t pNodes ) {
-
-		while( pNodes-- ) {
-
-			mConnections[pLayer]->AddAction( pName );
-		}
+		
 	}
 };
