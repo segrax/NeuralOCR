@@ -142,7 +142,7 @@ public:
 
 						cAction *ActionsUp = ConnectionUp->mActions[ LayerUpNode ];
 
-						Error += ActionsUp->mWeight[ Node ] * ActionsUp->mDelta;
+						Error += ActionsUp->mWeight[ LayerUpNode ] * ActionsUp->mDelta;
 					}
 
 
