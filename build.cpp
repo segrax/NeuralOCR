@@ -109,7 +109,9 @@ double *Input_B = InputBmp( "Pics\\24x12\\_B.bmp", Inputs);
 double *Input_C = InputBmp( "Pics\\24x12\\_C.bmp", Inputs);
 double *InputAB = InputBmp( "Pics\\24x12\\AB.bmp", Inputs);
 double *InputBA = InputBmp( "Pics\\24x12\\BA.bmp", Inputs);
-//double *Input_A_Red = InputBmp( "Pics\\24x12\\_A_Red.bmp", Inputs );
+double *Input_BrA = InputBmp( "Pics\\24x12\\A_ -.bmp", Inputs );
+
+double *Input_A_Red = InputBmp( "Pics\\24x12\\_A_Red.bmp", Inputs );
 
 /*
 double *Input__ = InputBmp( "Pics\\96x12\\________.bmp", Inputs );
@@ -128,14 +130,14 @@ void TrainInitial( const double *pInput, const size_t pInputs, double *pTarget, 
 	//mMomentum = 0.001;
 	//mLearningRate = 0.003;
 	Network->mMomentum		= 0.01;
-	Network->mLearningRate	= 0.1;
+	Network->mLearningRate	= 1;
 	Network->mErrorThresh	= 0.005;
 
 	double Error = 0;
 
 	cout << "Initial Training\n";
 
-	for( size_t Iteration = 0; Iteration < 5; ++Iteration ) {
+	for( size_t Iteration = 0; Iteration < 10; ++Iteration ) {
 
 		Error = Network->Backward( pInput, pInputs, pTarget, pTargets  );
 
@@ -147,12 +149,12 @@ void Train( const double *pInput, const size_t pInputs, double *pTarget, size_t 
 	double Error = 0;
 
 	//Network->mMomentum		= 0.001;
-	//Network->mLearningRate	= 0.002;
+	//Network->mLearningRate	= 0.01;
 	Network->mErrorThresh	= 0.005;
 
 	//Network->mLearningRate -= 0.000001;
 
-	for( size_t Iteration = 0; Iteration < 7; ++Iteration ) {
+	for( size_t Iteration = 0; Iteration < 6; ++Iteration ) {
 
 		Error = Network->Backward( pInput, pInputs, pTarget, pTargets  );
 
@@ -168,7 +170,7 @@ void TestRunExpected(  double *pInput, size_t pInputs, size_t pOutputNumber, siz
 	Outputs = Network->Forward( pInput, pInputs );
 
 	for( size_t pOutput = pOutputNumber; pOutput < pOutputNumberMax; ++pOutput ) 
-		cout << " Node: " << pOutput << " : "  << Outputs->mActions[ pOutput ]->mResult << "\n";
+		cout << " Node: " << pOutput << " : "  << std::setprecision(3) << Outputs->mActions[ pOutput ]->mResult << "\n";
 
 	cout << "\n";
 
@@ -198,11 +200,23 @@ void TrainRun( const double *pInput, const size_t pInputs, size_t pOutput, doubl
 	//TestRun( pInput, pInputs, pName );
 }
 
+void TrainRun2( const double *pInput, const size_t pInputs, size_t pOutput, size_t pOutput2, double pOutputValue, double pOutput2Value, string pName ) {
+
+	Zero(Target, Targets );
+	Target[pOutput] = pOutputValue;
+	Target[pOutput2] = pOutput2Value;
+
+	cout << "training " << pName << "\n";
+	Train( pInput, pInputs, Target, Targets );
+
+	//TestRun( pInput, pInputs, pName );
+}
 
 void Run() {
 
 	Network = new cNetwork();
 	Network->Load("net.bin");
+
 
 	Zero( Target, Targets );
 	// Train Blank
@@ -212,7 +226,8 @@ void Run() {
 		TestRun( Input__, Inputs, "__");
 
 		//TestRunExpected( Input_A_Red, Inputs, 3, 4, 1, "_A (Red)"); 
-		
+		TestRunExpected(Input_A_Red, Inputs, 0, 1, 1,"_A_Red" );
+
 		TestRunExpected( InputA_, Inputs, 0, 1, 1, "A_");
 		TestRunExpected( Input_A, Inputs, 0, 1, 1, "_A" );
 
@@ -223,20 +238,22 @@ void Run() {
 		TestRunExpected( Input_C, Inputs, 2, 3, 1, "_C");
 
 		TestRunExpected( InputBA, Inputs, 0, 2, 1, "AB");
-
-		TrainRun( Input__, Inputs, 0, 0.0, "__" );
-
+		TestRunExpected( Input_BrA, Inputs, 0, 1, 1, "Brendo's A");
+		//TrainRun( Input__, Inputs, 0, 0.0, "__" );
+		
 		// Train A_
 		TrainRun( InputA_, Inputs, 0, 1, "A_" );			// Node 0
 		TrainRun( Input_A, Inputs, 0, 1, "_A" );
+		TrainRun( Input_BrA, Inputs, 0, 1, "Brendo's A");
 
 		// Train B_
 		TrainRun( InputB_, Inputs,	1,	1, "B_" );		// Node 1
 		TrainRun( Input_B, Inputs,	1,	1, "_B" );
 
 		// Train C_
-		//TrainRun( InputC_, Inputs,	2,	1, "C_" );		// Node 2
-		//TrainRun( Input_C, Inputs,	2,	1, "_C" );		// Node 2
+		TrainRun( InputC_, Inputs,	2,	1, "C_" );		// Node 2
+		TrainRun( Input_C, Inputs,	2,	1, "_C" );		// Node 2
+		//TrainRun2( InputAB, Inputs, 0, 1, 1, 1, "AB" );
 
 		//TrainRun( Input_A_Red, Inputs, 3, 1, "_A_Red" );
 

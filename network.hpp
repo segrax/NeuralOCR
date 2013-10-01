@@ -216,12 +216,12 @@ public:
 	double Backward( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
 
 		if( mConnections.size() == 0 )
-			CreateLayers( 9, pInputs, pTargets );
+			CreateLayers( 1, pInputs, pTargets );
 
 		double Error = 0;
 
 		// Train
-		for( size_t Iteration = 0; Iteration < 10; ++Iteration ) {
+		for( size_t Iteration = 0; Iteration < 3; ++Iteration ) {
 
 			Error = TrainPattern( pInput, pInputs, pTarget, pTargets );
 		}
@@ -359,11 +359,9 @@ public:
 
 		// Input Layer
 		AddLayer( pInputs, Outputs );
-		// First Hidden
-		AddLayer( pInputs, Outputs );
 
 		int MinLayer = pHiddenLayers;
-		int DecSize = (pInputs - pOutputs) / 5;
+		int DecSize = (pInputs - pOutputs) / (pOutputs/2);
 
 		while( (pOutputs / Outputs) * 100 < 40 ) {
 
@@ -383,7 +381,6 @@ public:
 
 		// Output Layer
 		AddLayer( pInputs, pOutputs );
-
 
 		cConnection *Connection = mConnections[0];
 
