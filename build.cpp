@@ -128,7 +128,7 @@ void TrainInitial( const double *pInput, const size_t pInputs, double *pTarget, 
 	//mMomentum = 0.001;
 	//mLearningRate = 0.003;
 	Network->mMomentum		= 0.01;
-	Network->mLearningRate	= 0.01;
+	Network->mLearningRate	= 0.1;
 	Network->mErrorThresh	= 0.005;
 
 	double Error = 0;
@@ -209,23 +209,6 @@ void Run() {
 	TrainInitial( Input__, Inputs, Target, Targets );
 
 	for(;;) {
-		TrainRun( Input__, Inputs, 0, 0.0, "__" );
-
-		// Train A_
-		TrainRun( InputA_, Inputs, 0, 1, "A_" );			// Node 0
-
-		// Train B_
-		TrainRun( InputB_, Inputs,	1,	1, "B_" );		// Node 1
-
-		// Train C_
-		TrainRun( InputB_, Inputs,	2,	1, "C_" );		// Node 2
-		//TrainRun( Input_A_Red, Inputs, 3, 1, "_A_Red" );
-		// Train _A
-		//TrainRun( Input_A, Inputs, 0, 1, "_A" );
-
-		// Train _B
-		//TrainRun( Input_B, Inputs,	1,	1, "_B" );		// Node 1
-		Network->Save("net.bin");
 		TestRun( Input__, Inputs, "__");
 
 		//TestRunExpected( Input_A_Red, Inputs, 3, 4, 1, "_A (Red)"); 
@@ -240,6 +223,25 @@ void Run() {
 		TestRunExpected( Input_C, Inputs, 2, 3, 1, "_C");
 
 		TestRunExpected( InputBA, Inputs, 0, 2, 1, "AB");
+
+		TrainRun( Input__, Inputs, 0, 0.0, "__" );
+
+		// Train A_
+		TrainRun( InputA_, Inputs, 0, 1, "A_" );			// Node 0
+		TrainRun( Input_A, Inputs, 0, 1, "_A" );
+
+		// Train B_
+		TrainRun( InputB_, Inputs,	1,	1, "B_" );		// Node 1
+		TrainRun( Input_B, Inputs,	1,	1, "_B" );
+
+		// Train C_
+		//TrainRun( InputC_, Inputs,	2,	1, "C_" );		// Node 2
+		//TrainRun( Input_C, Inputs,	2,	1, "_C" );		// Node 2
+
+		//TrainRun( Input_A_Red, Inputs, 3, 1, "_A_Red" );
+
+		Network->Save("net.bin");
+
 		//( InputBA, Inputs, "BA");
 
 		//Network->ShowHow( InputA_, Inputs, 0 );

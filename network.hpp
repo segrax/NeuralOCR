@@ -41,7 +41,7 @@ public:
 
 
 		for( unsigned int x = 0; x < pInputCount; ++x )  {
-			mWeight.push_back( RandomNumber( -1, 1 ) );
+			mWeight.push_back( RandomNumber( -1 , 1 ) );
 			mChange.push_back(0);
 		}
 	}
@@ -142,7 +142,7 @@ public:
 
 						cAction *ActionsUp = ConnectionUp->mActions[ LayerUpNode ];
 
-						Error += ActionsUp->mWeight[ Node ] * Action->mDelta;
+						Error += ActionsUp->mWeight[ Node ] * ActionsUp->mDelta;
 					}
 
 
@@ -216,12 +216,12 @@ public:
 	double Backward( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
 
 		if( mConnections.size() == 0 )
-			CreateLayers( 3, pInputs, pTargets );
+			CreateLayers( 9, pInputs, pTargets );
 
 		double Error = 0;
 
 		// Train
-		for( size_t Iteration = 0; Iteration < 100; ++Iteration ) {
+		for( size_t Iteration = 0; Iteration < 10; ++Iteration ) {
 
 			Error = TrainPattern( pInput, pInputs, pTarget, pTargets );
 		}
@@ -363,7 +363,7 @@ public:
 		AddLayer( pInputs, Outputs );
 
 		int MinLayer = pHiddenLayers;
-		int DecSize = (pInputs - pOutputs) / 3;
+		int DecSize = (pInputs - pOutputs) / 5;
 
 		while( (pOutputs / Outputs) * 100 < 40 ) {
 
