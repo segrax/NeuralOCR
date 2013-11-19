@@ -114,11 +114,6 @@ public:
 
 public:
 
-	/**
-	* 
-	* @param pSum  Pointer to the current node values
-	* @param pSums Number of nodes
-	**/
 	cNetwork() {
 
 		mLayer = 0;
@@ -222,12 +217,6 @@ public:
 		return Error;
 	}
 
-	/**
-	* Start with the result
-	*
-	* @param pSource The values which the network has to output, based on its current values
-	* @param pCount  Number of values in pSource
-	**/
 	double Backward( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
 
 		if( mConnections.size() == 0 )
@@ -365,9 +354,9 @@ public:
 
 	/**
 	 *
-	 * @param pLayers  Number of hidden layers
-	 * @param pInputs  Number of nodes on the input layer
-	 * @param pOutputs Number of nodes on the output layer
+	 * @param pHiddenLayers Number of hidden layers
+	 * @param pInputs       Number of nodes on the input layer
+	 * @param pOutputs      Number of nodes on the output layer
 	 **/
 	void CreateLayers( const size_t pHiddenLayers, const size_t pInputs, const int pOutputs ) {
 		int Outputs = pInputs;
