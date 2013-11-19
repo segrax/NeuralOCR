@@ -216,7 +216,7 @@ public:
 	double Backward( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
 
 		if( mConnections.size() == 0 )
-			CreateLayers( 1, pInputs, pTargets );
+			CreateLayers( 2, pInputs, pTargets );
 
 		double Error = 0;
 

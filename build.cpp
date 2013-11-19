@@ -169,11 +169,25 @@ void TestRunExpected(  double *pInput, size_t pInputs, size_t pOutputNumber, siz
 
 	Outputs = Network->Forward( pInput, pInputs );
 
-	for( size_t pOutput = pOutputNumber; pOutput < pOutputNumberMax; ++pOutput ) 
+	for( size_t pOutput = pOutputNumber; pOutput < pOutputNumberMax; ++pOutput ) {
 		cout << " Node: " << pOutput << " : "  << std::setprecision(3) << Outputs->mActions[ pOutput ]->mResult << "\n";
 
-	cout << "\n";
+		// Was this node activated
+		if( Outputs->mActions[pOutput]->mResult > 0.51 ) {
 
+			// Print the letter
+			for( size_t x = 1; x <= pInputs; ++x ) {
+
+				cout << pInput[x-1];
+
+				if( x % 24 == 0 )
+					cout << "\n";
+			}
+		}
+
+	}
+
+	cout << "\n";
 }
 
 void TestRun( double *pInput, size_t pInputs, string pName ) {
@@ -186,7 +200,7 @@ void TestRun( double *pInput, size_t pInputs, string pName ) {
 
 		cout << " " <<  x << ": " << Outputs->mActions[ x ]->mResult << "  ";
 	}
-	cout << "\n";
+	cout << "\n\n";
 }
 
 void TrainRun( const double *pInput, const size_t pInputs, size_t pOutput, double pOutputValue, string pName ) {
@@ -225,9 +239,6 @@ void Run() {
 	for(;;) {
 		TestRun( Input__, Inputs, "__");
 
-		//TestRunExpected( Input_A_Red, Inputs, 3, 4, 1, "_A (Red)"); 
-		TestRunExpected(Input_A_Red, Inputs, 0, 1, 1,"_A_Red" );
-
 		TestRunExpected( InputA_, Inputs, 0, 1, 1, "A_");
 		TestRunExpected( Input_A, Inputs, 0, 1, 1, "_A" );
 
@@ -238,8 +249,11 @@ void Run() {
 		TestRunExpected( Input_C, Inputs, 2, 3, 1, "_C");
 
 		TestRunExpected( InputBA, Inputs, 0, 2, 1, "AB");
+
+		TestRunExpected(InputBA, Inputs, 0, 2, 1, "BA");
+
 		TestRunExpected( Input_BrA, Inputs, 0, 1, 1, "Brendo's A");
-		//TrainRun( Input__, Inputs, 0, 0.0, "__" );
+		TrainRun( Input__, Inputs, 0, 0.0, "__" );
 		
 		// Train A_
 		TrainRun( InputA_, Inputs, 0, 1, "A_" );			// Node 0
@@ -252,7 +266,7 @@ void Run() {
 
 		// Train C_
 		TrainRun( InputC_, Inputs,	2,	1, "C_" );		// Node 2
-		TrainRun( Input_C, Inputs,	2,	1, "_C" );		// Node 2
+		TrainRun( Input_C, Inputs,	2,	1, "_C" );		// Node 2*/
 		//TrainRun2( InputAB, Inputs, 0, 1, 1, 1, "AB" );
 
 		//TrainRun( Input_A_Red, Inputs, 3, 1, "_A_Red" );
