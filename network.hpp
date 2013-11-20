@@ -13,6 +13,9 @@
 *                                  ScS
 **/
 
+/**
+ * Unused
+ **/
 struct sHistory {
 
 	double mWeight;
@@ -44,6 +47,13 @@ public:
 
 	string			 mName;
 
+	/**
+	 * Constructor
+	 * 
+	 * @param pName       Name of the action
+	 * @param pInputCount Number of inputs to this node (action)
+	 * @param pThreshold  Threshold value for this node
+	 **/
 	cAction( const string &pName, const size_t &pInputCount, const double pThreshold ) {
 		mDelta = 0;
 		mInput = 0;
@@ -69,6 +79,13 @@ public:
 	size_t              mActionsIn;
 	string              mName;
 
+	/**
+	 * Constructor
+	 * 
+	 * @param pActions   Number of nodes (actions) in the layer
+	 * @param pActionsIn Number of inputs to the layer
+	 * @param pName      Name of the layer
+	 **/
 	cConnection( const size_t &pActions, const size_t &pActionsIn, const string &pName ) {
 		mActions.resize( pActions );
 
@@ -79,7 +96,10 @@ public:
 			mActions[ Node ] = new cAction( pName, pActionsIn, RandomNumber(-1,1) );
 		}
 	}
-
+	
+	/**
+	 * Reset the inputs
+	 **/
 	void EraseInputs() {
 
 		for( size_t Node = 0; Node < mActions.size(); ++Node ) {
@@ -87,7 +107,14 @@ public:
 			mActions[Node]->mStrengths.clear();
 		}
 	}
-
+	
+	/**
+	 * Add an action to the network
+	 * 
+	 * @param pName Name of the layer
+	 * 
+	 * @return The new node (action)
+	 **/
 	cAction *AddAction( string &pName ) {
 		cAction *Action = new cAction( pName, mActionsIn, RandomNumber(-1,1) );
 
@@ -113,7 +140,10 @@ public:
 	size_t mLayer;
 
 public:
-
+	/**
+	 * Constructor
+	 *  Setup some basic values
+	 **/
 	cNetwork() {
 
 		mLayer = 0;
@@ -123,6 +153,14 @@ public:
 		mErrorThresh	= 0.005;
 	}
 
+	/**
+	 * Randomize an array with randoms between -1 and 1
+	 * 
+	 * @param pVals  Array to fill with random numbers
+	 * @param pCount Number of randoms to generate
+	 * 
+	 * @return void
+	 **/
 	void Randomize( double *pVals, size_t pCount ) {
 
 		for( size_t count = 0; count < pCount; ++count ) {
@@ -131,6 +169,15 @@ public:
 		}
 	}
 
+	/**
+	 * Calculate the error value for each layer, starting at the output layer,
+	 * moving backwards towards the input layer
+	 * 
+	 * @param pTarget  Expected values for the output layer
+	 * @param pTargets Number of target values
+	 * 
+	 * @return void
+	 **/ 
 	void ErrorLayer( const double *pTarget, const size_t pTargets  ) {
 
 		for( int Layer = mConnections.size() - 1; Layer >= 0; --Layer ) {
@@ -164,6 +211,10 @@ public:
 		}
 	}
 
+	/**
+	 * Adjust the weights in each layer towards the required weight to achieve the 'target' 
+	 * which was previously run backward through the network
+	 **/
 	void WeightAdjust() {
 
 		for( size_t Layer = 1; Layer <= mConnections.size() - 1; ++Layer ) {
@@ -194,6 +245,13 @@ public:
 		}
 	}
 
+	/**
+	 * Calculate the mean squeared value of the error for a layer
+	 * 
+	 * @param pConnection The layer to calculate from
+	 * 
+	 * @return The sum of the errors
+	 **/ 
 	double MeanSqueared( cConnection *pConnection ) {
 		double sum = 0;
 
@@ -205,6 +263,16 @@ public:
 		return sum / pConnection->mActions.size();
 	}
 
+	/**
+	 * Train the network towards a certain set of targets, based on a certain set of inputs
+	 * 
+	 * @param pInput   The input data
+	 * @param pInputs  The number of inputs
+	 * @param pTarget  The Target data
+	 * @param pTargets The number of targets
+	 * 
+	 * @return The error (difference between expected and actual result)
+	 **/ 
 	double TrainPattern( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
 
 		Forward( pInput, pInputs );
@@ -217,6 +285,16 @@ public:
 		return Error;
 	}
 
+	/**
+	 * Run the target data backwards through the network
+	 * 
+	 * @param pInput   The input data
+	 * @param pInputs  The number of inputs
+	 * @param pTarget  The Target data
+	 * @param pTargets The number of targets
+	 * 
+	 * @return The error (difference between expected and actual result)
+	 **/
 	double Backward( const double *pInput, const size_t pInputs, const double *pTarget, const size_t pTargets ) {
 
 		if( mConnections.size() == 0 )
@@ -233,6 +311,14 @@ public:
 		return Error;
 	}
 
+	/**
+	 * Run a set of inputs through the network
+	 * 
+	 * @param pInputs     Input Data
+	 * @param pInputCount Number of bytes in the input 
+	 * 
+	 * @return Output Layer
+	 **/
 	cConnection *Forward( const double *pInputs, const size_t pInputCount ) {
 
 		// Load inputs
@@ -269,6 +355,13 @@ public:
 		return mConnections[ mConnections.size() -1] ;
 	}
 	
+	/**
+	 * Load a saved network
+	 * 
+	 * @param pFile A saved network to be loaded
+	 * 
+	 * @return True if file was loaded
+	 **/ 
 	bool Load( string pFile ) {
 		std::ifstream in(pFile,std::ios::binary);
 		if(in.is_open() == false )
@@ -308,6 +401,13 @@ public:
 		return true;
 	}
 
+	/**
+	 * Save the network to a file
+	 * 
+	 * @param pFile File to save the network to
+	 * 
+	 * @return void
+	 **/
 	void Save( string pFile ) {
 		std::ofstream out(pFile,std::ios::binary);
 		size_t Layers = mConnections.size();
@@ -335,6 +435,16 @@ public:
 		cout << "Done\n";
 		out.close();
 	}
+	
+	/**
+	 * Create a layer in the network
+	 * 
+	 * @param pLayer Layer number
+	 * @param pName  Name of the layer
+	 * @param pNodes Number of nodes in the layer
+	 * 
+	 * @return void
+	 **/
 	void CreateGroup( size_t pLayer, string pName, size_t pNodes ) {
 
 		while( pNodes-- ) {
@@ -343,6 +453,14 @@ public:
 		}
 	}
 	
+	/**
+	 * Add a new layer to the network
+	 * 
+	 * @param pInputs  Number of inputs to the layer
+	 * @param pOutputs Number of outputs from the layer
+	 * 
+	 * @return The new layer
+	 **/ 
 	cConnection *AddLayer( size_t pInputs, size_t pOutputs) {
 		string Name = "";
 		cConnection *Connection = new cConnection( pOutputs, pInputs, Name );
@@ -353,10 +471,13 @@ public:
 	}
 
 	/**
-	 *
+	 * Create a set of layers
+	 * 
 	 * @param pHiddenLayers Number of hidden layers
 	 * @param pInputs       Number of nodes on the input layer
 	 * @param pOutputs      Number of nodes on the output layer
+	 * 
+	 * @return void
 	 **/
 	void CreateLayers( const size_t pHiddenLayers, const size_t pInputs, const int pOutputs ) {
 		int Outputs = pInputs;
