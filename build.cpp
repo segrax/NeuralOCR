@@ -1,15 +1,9 @@
 /**
 *          Network Builder
 *
-* A self organizing, hand/auto trained
-*  auto growing with memory, and stuff
-*
-* In other words... a growing learner                         
-* 
 * Copyright (c) 2013 Robert Crossfield
 *
 *              Strobs Canardly Systems
-*
 *                                  ScS
 **/
 #include<iostream>
