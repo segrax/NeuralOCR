@@ -8,29 +8,9 @@
 *                                  ScS
 **/
 
-/**
- * Unused
- **/
-struct sHistory {
-
-	double mWeight;
-	double mInputResult;
-	size_t mNode;
-
-	sHistory( size_t pNode, double pWeight, double pResult ) {
-		mNode = pNode;
-
-		mWeight = pWeight;
-		mInputResult = pResult;
-
-	}
-
-};
-
 class cAction {
 public:
 	vector< double > mWeight;
-	vector< sHistory > mStrengths;
 
 	double			 mThreshold;
 	double			 mResult;
@@ -99,7 +79,6 @@ public:
 
 		for( size_t Node = 0; Node < mActions.size(); ++Node ) {
 			mActions[Node]->mInput = 0;
-			mActions[Node]->mStrengths.clear();
 		}
 	}
 	
